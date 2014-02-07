@@ -1,0 +1,11 @@
+The data is present in duplicate.
+
+csv files -- the original data
+arff files -- labeled data (to make it easier to load into weka)
+ - labels are as follows:
+  - rest 		= rest
+	- barmup 	= both arms up
+	- rarmup 	= right arm up
+	- larmup 	= left arm up
+
+Note, none of the data is processed in any way.

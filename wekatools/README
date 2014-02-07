@@ -1,0 +1,1 @@
+Before running make, make sure that weka is installed. If weka.jar is not in wekatools/lib/, there will be errors.
