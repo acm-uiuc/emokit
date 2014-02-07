@@ -447,7 +447,11 @@ class Emotiv(object):
             _os_decryption = True
             self.hidraw = open("/dev/eeg/raw")
         else:
-            setup = self.getLinuxSetup()
+            try:
+                setup = self.getLinuxSetup()
+            # don't crash when /sys/class/hidraw is not found
+            except:
+                setup = ["hidraw0", "hidraw1"]
             self.serialNum = setup[0]
             if os.path.exists("/dev/" + setup[1]):
                 self.hidraw = open("/dev/" + setup[1])
