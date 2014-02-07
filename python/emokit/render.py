@@ -13,6 +13,7 @@ import gevent
 import sys
 
 from emotiv import Emotiv
+import csv
 
 class Grapher(object):
     def __init__(self, screen, name, i):
@@ -57,10 +58,10 @@ class Grapher(object):
             pos = (self.xoff + i, y)
         self.screen.blit(self.text, self.textpos)
 
-def main(debug=False):
+def main(outfile='eegout.csv', debug=False):
     global gheight
     pygame.init()
-    screen = pygame.display.set_mode((1600, 900))
+    screen = pygame.display.set_mode((800, 450))
     graphers = []
     recordings = []
     recording = False
@@ -68,12 +69,26 @@ def main(debug=False):
     updated = False
     curX, curY = 400, 300
 
-    for name in 'AF3 F7 F3 FC5 T7 P7 O1 O2 P8 T8 FC6 F4 F8 AF4'.split(' '):
+    features = 'AF3 F7 F3 FC5 T7 P7 O1 O2 P8 T8 FC6 F4 F8 AF4'.split(' ')
+
+    for name in features:
         graphers.append(Grapher(screen, name, len(graphers)))
     fullscreen = False
     emotiv = Emotiv(displayOutput=False)
     gevent.spawn(emotiv.setup)
     gevent.sleep(1)
+
+    labels = 'rest, bhandup, rhandup, lhandup'.split(' ')
+    testsize = 0
+    testsizemax = 50
+    testlabel = 0
+    train = True
+
+    csvfile = open(outfile, 'wb')
+    csvwriter = csv.writer(csvfile, delimiter = ',')
+    # first row = attribute names
+    csvwriter.writerow(features);
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -108,6 +123,14 @@ def main(debug=False):
                 if abs(packet.gyroY) > 1:
                     curY += packet.gyroY
                     curY = max(0, min(curY, 900))
+                
+                sensors = packet.sensors
+                csvrow = []
+                for i in range(len(features)):
+                  csvrow.append(sensors[features[i]]['value'])
+                print csvrow
+                csvwriter.writerow(csvrow);
+
                 map(lambda x: x.update(packet), graphers)
                 if recording:
                     record_packets.append(packet)
