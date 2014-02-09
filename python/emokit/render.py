@@ -14,6 +14,7 @@ import sys
 
 from emotiv import Emotiv
 import csv
+from randomized_trees import RandomizedTrees
 
 class Grapher(object):
     def __init__(self, screen, name, i):
@@ -68,6 +69,7 @@ def main(outfile='eegout.csv', debug=False):
     record_packets = []
     updated = False
     curX, curY = 400, 300
+    pause = False
 
     features = 'AF3 F7 F3 FC5 T7 P7 O1 O2 P8 T8 FC6 F4 F8 AF4'.split(' ')
 
@@ -78,16 +80,19 @@ def main(outfile='eegout.csv', debug=False):
     gevent.spawn(emotiv.setup)
     gevent.sleep(1)
 
-    labels = 'rest, bhandup, rhandup, lhandup'.split(' ')
+    labels = 'down up'.split(' ')
+    classifier = RandomizedTrees(labels)
     testsize = 0
-    testsizemax = 50
-    testlabel = 0
-    train = True
+    train = 0
 
     csvfile = open(outfile, 'wb')
     csvwriter = csv.writer(csvfile, delimiter = ',')
     # first row = attribute names
     csvwriter.writerow(features);
+
+    # for displaying testing instructions
+    font = pygame.font.Font(None, 36)
+    text = 'next: ' + labels[train / 2]
 
     while True:
         for event in pygame.event.get():
@@ -100,10 +105,12 @@ def main(outfile='eegout.csv', debug=False):
                     return
                 elif (event.key == pygame.K_f):
                     if fullscreen:
-                        screen = pygame.display.set_mode((1600, 900))
+                        screen = pygame.display.set_mode((800, 450))
                         fullscreen = False
                     else:
-                        screen = pygame.display.set_mode((1600,900), FULLSCREEN, 16)
+                        # Don't actually do full-screen. You might be unable to
+                        # undo...
+                        screen = pygame.display.set_mode((1600,900))
                         fullscreen = True
                 elif (event.key == pygame.K_r):
                     if not recording:
@@ -113,16 +120,31 @@ def main(outfile='eegout.csv', debug=False):
                         recording = False
                         recordings.append(list(record_packets))
                         record_packets = None
+                elif (event.key == pygame.K_RETURN):
+                    train = train + 1
+                    # print the next concept to train
+                    if train < 2 * len(labels) - 1:
+                      if train % 2 == 0:
+                        text = 'next: ' + labels[train / 2]
+                      else:
+                        text = 'current: ' + labels[train / 2]
+                    else:
+                        text = ''
+                elif (event.key == pygame.K_p):
+                  pause = not pause
+                  
         packetsInQueue = 0
         try:
             while packetsInQueue < 8:
                 packet = emotiv.dequeue()
-                if abs(packet.gyroX) > 1:
-                    curX = max(0, min(curX, 1600))
-                    curX -= packet.gyroX
-                if abs(packet.gyroY) > 1:
-                    curY += packet.gyroY
-                    curY = max(0, min(curY, 900))
+
+                # update cursor position based on gyros
+#                if abs(packet.gyroX) > 1:
+#                    curX = max(0, min(curX, 1600))
+#                    curX -= packet.gyroX
+#                if abs(packet.gyroY) > 1:
+#                    curY += packet.gyroY
+#                    curY = max(0, min(curY, 900))
                 
                 sensors = packet.sensors
                 csvrow = []
@@ -130,6 +152,42 @@ def main(outfile='eegout.csv', debug=False):
                   csvrow.append(sensors[features[i]]['value'])
                 print csvrow
                 csvwriter.writerow(csvrow);
+
+                if train == 0:
+                  print 'doing nothing'
+
+                elif train < 2 * len(labels):
+                  if train % 2 == 1:
+                    classifier.AddTrainExample(csvrow, labels[train / 2])
+                    testsize = testsize + 1
+                    print labels[train / 2]
+
+                elif train == 2 * len(labels):
+                  classifier.Train()
+                  train = train + 1
+
+                else:
+                  (label, score) = classifier.Classify(csvrow)
+                  print "label:"
+                  print label
+                  print "classification score:"
+                  print score
+                  # Update cursor (top left if (0, 0)):
+                  #   Suggested pairings:
+                  #   right hand up = right
+                  #   left hand up = left
+                  #   both hands up = up
+                  #   rest up = down
+                  if pause == False:
+                    if label == 'right':
+                      curX += 1
+                    elif label == 'left':
+                      curX -= 1
+                    elif label == 'down':
+                      curY += 1
+                    elif label == 'up':
+                      curY -= 1
+
 
                 map(lambda x: x.update(packet), graphers)
                 if recording:
@@ -142,7 +200,10 @@ def main(outfile='eegout.csv', debug=False):
         if updated:
             screen.fill((75, 75, 75))
             map(lambda x: x.draw(), graphers)
-            pygame.draw.rect(screen, (255, 255, 255), (curX - 5, curY - 5, 10, 10), 0)
+            pygame.draw.rect(screen, (255, 255, 255), (curX - 5, curY - 5, 10, 10), 0)  
+            # r for 'to render'
+            rtext = font.render(text, 1, (0, 255, 0))
+            screen.blit(rtext, (0, 0))
             pygame.display.flip()
             updated = False
         gevent.sleep(0)
