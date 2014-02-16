@@ -11,7 +11,7 @@ class RandomizedTrees(object):
     self.labels = labels
     self.X = []
     self.y = []
-    self.clf = RandomForestClassifier(n_estimators=10, max_depth=None, min_samples_split=1, random_state=0)
+    self.clf = RandomForestClassifier(n_estimators=10, max_depth=10, min_samples_split=1, random_state=0)
 #    self.clf.fit(14 * [0], 'dummy')
 
   # Add training example to training data set. 

@@ -123,7 +123,7 @@ def main(outfile='eegout.csv', debug=False):
                 elif (event.key == pygame.K_RETURN):
                     train = train + 1
                     # print the next concept to train
-                    if train < 2 * len(labels) - 1:
+                    if train < 2 * len(labels):
                       if train % 2 == 0:
                         text = 'next: ' + labels[train / 2]
                       else:
@@ -181,12 +181,22 @@ def main(outfile='eegout.csv', debug=False):
                   if pause == False:
                     if label == 'right':
                       curX += 1
+                      x, y = screen.get_size()
+                      if curX > x:
+                        curX = x
                     elif label == 'left':
                       curX -= 1
+                      if curX < 0:
+                        curX = 0
                     elif label == 'down':
                       curY += 1
+                      x, y = screen.get_size()
+                      if curY > y:
+                        curY = y
                     elif label == 'up':
                       curY -= 1
+                      if curY < 0:
+                        curY = 0
 
 
                 map(lambda x: x.update(packet), graphers)
